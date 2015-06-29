@@ -8,16 +8,19 @@ datatype scalar_unary = Inc | Dec
 
 datatype scalar_binary = Add | Mul | Sub
 
-datatype scalar_const = IntC int
+datatype scalar_const = IntC int | NullC
 
 fun eval_scalar_unary :: "scalar_unary \<Rightarrow> scalar_const \<Rightarrow> scalar_const" where
   "eval_scalar_unary Inc (IntC n) = IntC (n + 1)" |
-  "eval_scalar_unary Dec (IntC n) = IntC (n - 1)" 
+  "eval_scalar_unary Dec (IntC n) = IntC (n - 1)" |
+  "eval_scalar_unary _ NullC = NullC"
 
 fun eval_scalar_binary :: "scalar_binary \<Rightarrow> scalar_const \<Rightarrow> scalar_const \<Rightarrow> scalar_const" where
   "eval_scalar_binary Add (IntC i) (IntC j) = IntC (i + j)" |
   "eval_scalar_binary Mul (IntC i) (IntC j) = IntC (i * j)" |
-  "eval_scalar_binary Sub (IntC i) (IntC j) = IntC (i - j)" 
+  "eval_scalar_binary Sub (IntC i) (IntC j) = IntC (i - j)" |
+  "eval_scalar_binary _ NullC _ = NullC" |
+  "eval_scalar_binary _ _ NullC = NullC"
 
 type_synonym var = nat
 
@@ -35,53 +38,6 @@ datatype exp = Const scalar_const
   | Split exp exp 
   | Join exp
   | Iterate exp exp exp
-
-(* 
-type_synonym env = "(var \<times> exp) list"
-
-fun lookup :: "'a \<Rightarrow> ('a \<times> 'b) list \<Rightarrow> 'b option" where
-  "lookup k [] = None" |
-  "lookup k ((k',v)#ls) = (if k = k' then Some v else lookup k ls)"
-
-datatype result = Res exp | Error
-
-fun array_map :: "(exp \<Rightarrow> result) \<Rightarrow> exp array \<Rightarrow> (exp array) option" where
-  "array_map f [] = Some []" |
-  "array_map f (x # xs) = (case (f x) of
-                              Res x' \<Rightarrow> (case (array_map f xs) of 
-                                            Some xs' \<Rightarrow> Some (x' # xs')
-                                          | None \<Rightarrow> None)
-                            | _ \<Rightarrow> None)" 
-
-fun interp :: "exp \<Rightarrow> env \<Rightarrow> result" where
-  "interp (Const c) \<rho> = Res (Const c)" |
-  "interp (Unary p e) \<rho> = 
-    (case (interp e \<rho>) of 
-      Res (Const c) \<Rightarrow> Res (Const (eval_scalar_unary p c))
-    | Error \<Rightarrow> Error)" |
-  "interp (Binary p e1 e2) \<rho> = 
-    (case (interp e1 \<rho>, interp e2 \<rho>) of 
-      (Res (Const c1), Res (Const c2)) \<Rightarrow> Res (Const (eval_scalar_binary p c1 c2))
-    | (Error,_) \<Rightarrow> Error | (_,Error) \<Rightarrow> Error)" |
-  "interp (Var x) \<rho> = 
-    (case (lookup x \<rho>) of 
-      Some e \<Rightarrow> Res e
-    | None \<Rightarrow> Error)" |
-  "interp (LambdaE v e) \<rho> = 
-    Res (Closure v e \<rho>)" |
-  "interp (Map e1 e2) \<rho> = 
-    (case (interp e1 \<rho>, interp e2 \<rho>) of 
-      (Res (Closure v e1' \<rho>'), Res (Array le)) \<Rightarrow>
-        (case (array_map (\<lambda> i. interp e1' ((v,i)#\<rho>')) le) of 
-          Some v' \<Rightarrow> Res (Array v')
-        | None \<Rightarrow> Error)
-    |  (Error,_) \<Rightarrow> Error | (_,Error) \<Rightarrow> Error)" *)
-(* 
-  "interp (AppE e1 e2) \<rho> =
-    (case (interp e1 \<rho>, interp e2 \<rho>) of 
-       (Res (Closure v e1' \<rho>'), Res e2') \<Rightarrow> interp e1' ((v,e2')#\<rho>')
-    | (Error,_) \<Rightarrow> Error | (_,Error) \<Rightarrow> Error)"
- *)
 
 abbreviation list_max :: "nat list \<Rightarrow> nat" where
   "list_max ls \<equiv> foldr max ls (0::nat)"
@@ -172,6 +128,10 @@ fun array_map :: "(exp \<Rightarrow> result) \<Rightarrow> exp array \<Rightarro
                                           | None \<Rightarrow> None)
                             | _ \<Rightarrow> None)" 
 
+fun error_to_null :: "result \<Rightarrow> exp" where
+  "error_to_null (Res e) = e" |
+  "error_to_null _ = Const NullC" 
+
 (* Interpreter with a count down that might time out. *)
 fun interp_limit :: "exp \<Rightarrow> nat \<Rightarrow> result" where
   "interp_limit (Const c) (Suc n) = Res (Const c)" |
@@ -187,22 +147,40 @@ fun interp_limit :: "exp \<Rightarrow> nat \<Rightarrow> result" where
   "interp_limit (FVar x) (Suc n) = Error" |
   "interp_limit (BVar k) (Suc n) = Error" |
   "interp_limit (LambdaE e) (Suc n) = Res (LambdaE e)" |
+  "interp_limit (Array le) (Suc n) = 
+    (case (array_map (\<lambda> i. interp_limit i n) le) of
+      Some v' \<Rightarrow> Res (Array v')
+    | None \<Rightarrow> Error)" |
   "interp_limit (AppE e1 e2) (Suc n) =
       (case (interp_limit e1 n, interp_limit e2 n) of
         (Res (LambdaE e), Res v) \<Rightarrow> interp_limit (bsubst 0 v e) n
       | (TimeOut, _) \<Rightarrow> TimeOut | (_, TimeOut) \<Rightarrow> TimeOut | (_,_) \<Rightarrow> Error)" |
-(*   "interp_limit (Map e1 e2) (Suc n) = 
+   "interp_limit (Map e1 e2) (Suc n) = 
       (case (interp_limit e1 n, interp_limit e2 n) of 
         (Res (LambdaE e), Res (Array v)) \<Rightarrow> 
-          (case (array_map (\<lambda> i. interp_limit (AppE e i) n) v) of 
-              Some v' \<Rightarrow> Res (Array v')
-            | None \<Rightarrow> Error) 
-      | (TimeOut, _) \<Rightarrow> TimeOut | (_, TimeOut) \<Rightarrow> TimeOut | (_,_) \<Rightarrow> Error)" | *)
+          Res (Array (map (\<lambda> i. error_to_null (interp_limit (bsubst 0 i e) n)) v))
+      | (TimeOut, _) \<Rightarrow> TimeOut | (_, TimeOut) \<Rightarrow> TimeOut | (_,_) \<Rightarrow> Error)" |
   "interp_limit _ (Suc n) = Error" |
   "interp_limit _ 0 = TimeOut"
 
 abbreviation p0 :: exp where "p0 \<equiv> Binary Add (Const (IntC 1)) (Const (IntC 2))"
 abbreviation p1 :: exp where "p1 \<equiv> Unary Inc (Const (IntC 2))"
+abbreviation p2 :: exp where "p2 \<equiv> Array [p0, p1]"
+abbreviation p3 :: exp where "p3 \<equiv> Map (LambdaE (Const (IntC 1))) (Array [p0, p1])"
+abbreviation p4 :: exp where "p4 \<equiv> Map (LambdaE (Unary Inc (BVar 0))) (Array [p0, p1])"
 value "interp_limit p0 2"
 value "interp_limit p1 2"
-theorem "interp_limit p0 2 = Res (Const (IntC 3))" 
+value "interp_limit p2 10"
+value "interp_limit p3 10"
+value "interp_limit p4 10"
+theorem t0: assumes a1: "e = p0" and a2: "v = Const (IntC 3)"
+  shows "interp_limit e (Suc 1) = Res v" using a1 a2
+  apply (induct e arbitrary: v, auto)
+done
+theorem t0': assumes a1: "e = p0" and a2: "v = Const (IntC 3)"
+  shows "\<exists>n. interp_limit e (Suc n) = Res v" using a1 a2
+  apply (induct e arbitrary: v) apply auto
+  (* sledgehammer! *)
+  apply (smt add.commute eval_scalar_binary.simps(1) exp.simps(197) interp_limit.simps(1) 
+             numeral_Bit0 numeral_Bit1 result.simps(8))
+done
