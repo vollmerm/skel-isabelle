@@ -114,51 +114,51 @@ abbreviation assoc_dom :: "('a \<times> 'b) list \<Rightarrow> 'a set" where
 lemma msubst_id: fixes e::exp assumes rfv: "assoc_dom \<rho> \<inter> set (FV e) = {}"
   shows "[\<rho>]e = e"
   using rfv apply (induction \<rho> arbitrary: e) apply simp using subst_id by auto
-
+ 
 datatype result = Res exp | Error | TimeOut
 
 
 (* Ideally we'd have the whole interpreter return an error if there's an error
    inside an array computation, so we need custom implementations of the primitives
    like map. *)
-(* fun array_map :: "(exp \<Rightarrow> result) \<Rightarrow> exp array \<Rightarrow> (exp array) option" where
+fun array_map :: "(exp \<Rightarrow> result) \<Rightarrow> exp array \<Rightarrow> (exp array) option" where
   "array_map f [] = Some []" |
   "array_map f (x # xs) = (case (f x) of
                               Res x' \<Rightarrow> (case (array_map f xs) of 
                                             Some xs' \<Rightarrow> Some (x' # xs')
                                           | None \<Rightarrow> None)
-                            | _ \<Rightarrow> None)" *)
+                            | _ \<Rightarrow> None)" 
 
-
-(* The interpreter returning an error when doing an array computation
-   puts a NULL in the array. This is probably not the right behavior. *)
-fun error_to_null :: "result \<Rightarrow> exp" where
-  "error_to_null (Res e) = e" |
-  "error_to_null _ = Null"
-
-fun interp :: "exp \<Rightarrow> nat \<Rightarrow> result" where
-  "interp (Const c) (Suc n) = Res (Const c)" |
-  "interp (Unary p e) (Suc n) = 
-     (case interp e n of 
+(* Interpreter with a count down that might time out. *)
+fun interp_limit :: "exp \<Rightarrow> nat \<Rightarrow> result" where
+  "interp_limit (Const c) (Suc n) = Res (Const c)" |
+  "interp_limit (Unary p e) (Suc n) = 
+     (case interp_limit e n of 
        Res (Const c) \<Rightarrow> Res (Const (eval_scalar_unary p c))
      | Error \<Rightarrow> Error | TimeOut \<Rightarrow> TimeOut)" |
-   "interp (Binary p e1 e2) (Suc n) = 
-     (case (interp e1 n, interp e2 n) of 
+   "interp_limit (Binary p e1 e2) (Suc n) = 
+     (case (interp_limit e1 n, interp_limit e2 n) of 
        (Res (Const c1), Res (Const c2)) \<Rightarrow> Res (Const (eval_scalar_binary p c1 c2))
      | (Error,_) \<Rightarrow> Error | (_,Error) \<Rightarrow> Error 
      | (TimeOut,_) \<Rightarrow> TimeOut | (_,TimeOut) \<Rightarrow> TimeOut)" |
-  "interp (FVar x) (Suc n) = Error" |
-  "interp (BVar k) (Suc n) = Error" |
-  "interp (LambdaE e) (Suc n) = Res (LambdaE e)" |
-  "interp (AppE e1 e2) (Suc n) =
-      (case (interp e1 n, interp e2 n) of
-        (Res (LambdaE e), Res v) \<Rightarrow> interp (bsubst 0 v e) n
+  "interp_limit (FVar x) (Suc n) = Error" |
+  "interp_limit (BVar k) (Suc n) = Error" |
+  "interp_limit (LambdaE e) (Suc n) = Res (LambdaE e)" |
+  "interp_limit (AppE e1 e2) (Suc n) =
+      (case (interp_limit e1 n, interp_limit e2 n) of
+        (Res (LambdaE e), Res v) \<Rightarrow> interp_limit (bsubst 0 v e) n
       | (TimeOut, _) \<Rightarrow> TimeOut | (_, TimeOut) \<Rightarrow> TimeOut | (_,_) \<Rightarrow> Error)" |
-  "interp (Map e1 e2) (Suc n) = 
-      (case (interp e1 n, interp e2 n) of 
+  "interp_limit (Map e1 e2) (Suc n) = 
+      (case (interp_limit e1 n, interp_limit e2 n) of 
         (Res (LambdaE e), Res (Array v)) \<Rightarrow> 
-          Res (Array (map (\<lambda> i. error_to_null (interp (AppE e i) n)) v))
+          (case (array_map (\<lambda> i. interp_limit (AppE e i) n) v) of 
+              Some v' \<Rightarrow> Res (Array v')
+            | None \<Rightarrow> Error) 
       | (TimeOut, _) \<Rightarrow> TimeOut | (_, TimeOut) \<Rightarrow> TimeOut | (_,_) \<Rightarrow> Error)" |
-  "interp _ (Suc n) = Error" |
-  "interp _ 0 = TimeOut"
+  "interp_limit _ (Suc n) = Error" |
+  "interp_limit _ 0 = TimeOut"
 
+abbreviation p0 :: exp where "p0 \<equiv> Binary Add (Const (IntC 1)) (Const (IntC 2))"
+abbreviation p1 :: exp where "p1 \<equiv> Unary Inc (Const (IntC 1))"
+value "interp_limit p0 2"
+value "interp_limit p1 1000"
