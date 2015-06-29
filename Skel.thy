@@ -2,27 +2,27 @@ theory Skel
 imports Main
 begin
 
-datatype const = 
-    ScalarC int 
-  | TupleC const const  
-  | ArrayC "const list"
-  | Null
+datatype scalar_unary = Inc | Dec
 
-datatype primitive = Inc | Dec | PrjL | PrjR
+datatype scalar_binary = Add | Mul | Sub
+(* no division here makes my life easier *)
 
-datatype prim_result = Result const | PError
+datatype scalar_const = IntC int
 
-fun eval_prim :: "primitive \<Rightarrow> const \<Rightarrow> prim_result" where
-  "eval_prim Inc (ScalarC n) = Result (ScalarC (n + 1))" |
-  "eval_prim Dec (ScalarC n) = Result (ScalarC (n - 1))" |
-  "eval_prim PrjL (TupleC a b) = Result a" |
-  "eval_prim PrjR (TupleC a b) = Result b" |
-  "eval_prim _ _ = PError"
+fun eval_scalar_unary :: "scalar_unary \<Rightarrow> scalar_const \<Rightarrow> scalar_const" where
+  "eval_scalar_unary Inc (IntC n) = IntC (n + 1)" |
+  "eval_scalar_unary Dec (IntC n) = IntC (n - 1)"
+
+fun eval_scalar_binary :: "scalar_binary \<Rightarrow> scalar_const \<Rightarrow> scalar_const \<Rightarrow> scalar_const" where
+  "eval_scalar_binary Add (IntC i) (IntC j) = IntC (i + j)" |
+  "eval_scalar_binary Mul (IntC i) (IntC j) = IntC (i * j)" |
+  "eval_scalar_binary Sub (IntC i) (IntC j) = IntC (i - j)" 
 
 type_synonym var = nat
 
-datatype exp = Const const
-  | Prim primitive exp
+datatype exp = Const scalar_const
+  | Unary scalar_unary exp
+  | Binary scalar_binary exp
   | FVar var | BVar var 
   | LambdaE exp | AppE exp exp 
   | Map exp exp | Zip exp exp | Reduce exp exp exp
