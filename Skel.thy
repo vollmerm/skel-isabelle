@@ -25,17 +25,63 @@ datatype exp = Const scalar_const
   | Unary scalar_unary exp
   | Binary scalar_binary exp exp
   | FVar var 
-  | BVar var 
+  | BVar var
   | Array "exp array"
   | LambdaE exp 
-  | AppE exp exp 
+  | AppE exp exp
   | Map exp exp 
   | Zip exp exp 
   | Reduce exp exp exp
   | Split exp exp 
   | Join exp
   | Iterate exp exp exp
-  | Null
+
+(* 
+type_synonym env = "(var \<times> exp) list"
+
+fun lookup :: "'a \<Rightarrow> ('a \<times> 'b) list \<Rightarrow> 'b option" where
+  "lookup k [] = None" |
+  "lookup k ((k',v)#ls) = (if k = k' then Some v else lookup k ls)"
+
+datatype result = Res exp | Error
+
+fun array_map :: "(exp \<Rightarrow> result) \<Rightarrow> exp array \<Rightarrow> (exp array) option" where
+  "array_map f [] = Some []" |
+  "array_map f (x # xs) = (case (f x) of
+                              Res x' \<Rightarrow> (case (array_map f xs) of 
+                                            Some xs' \<Rightarrow> Some (x' # xs')
+                                          | None \<Rightarrow> None)
+                            | _ \<Rightarrow> None)" 
+
+fun interp :: "exp \<Rightarrow> env \<Rightarrow> result" where
+  "interp (Const c) \<rho> = Res (Const c)" |
+  "interp (Unary p e) \<rho> = 
+    (case (interp e \<rho>) of 
+      Res (Const c) \<Rightarrow> Res (Const (eval_scalar_unary p c))
+    | Error \<Rightarrow> Error)" |
+  "interp (Binary p e1 e2) \<rho> = 
+    (case (interp e1 \<rho>, interp e2 \<rho>) of 
+      (Res (Const c1), Res (Const c2)) \<Rightarrow> Res (Const (eval_scalar_binary p c1 c2))
+    | (Error,_) \<Rightarrow> Error | (_,Error) \<Rightarrow> Error)" |
+  "interp (Var x) \<rho> = 
+    (case (lookup x \<rho>) of 
+      Some e \<Rightarrow> Res e
+    | None \<Rightarrow> Error)" |
+  "interp (LambdaE v e) \<rho> = 
+    Res (Closure v e \<rho>)" |
+  "interp (Map e1 e2) \<rho> = 
+    (case (interp e1 \<rho>, interp e2 \<rho>) of 
+      (Res (Closure v e1' \<rho>'), Res (Array le)) \<Rightarrow>
+        (case (array_map (\<lambda> i. interp e1' ((v,i)#\<rho>')) le) of 
+          Some v' \<Rightarrow> Res (Array v')
+        | None \<Rightarrow> Error)
+    |  (Error,_) \<Rightarrow> Error | (_,Error) \<Rightarrow> Error)" *)
+(* 
+  "interp (AppE e1 e2) \<rho> =
+    (case (interp e1 \<rho>, interp e2 \<rho>) of 
+       (Res (Closure v e1' \<rho>'), Res e2') \<Rightarrow> interp e1' ((v,e2')#\<rho>')
+    | (Error,_) \<Rightarrow> Error | (_,Error) \<Rightarrow> Error)"
+ *)
 
 abbreviation list_max :: "nat list \<Rightarrow> nat" where
   "list_max ls \<equiv> foldr max ls (0::nat)"
@@ -60,8 +106,7 @@ primrec FV :: "exp \<Rightarrow> var list" where
   "FV (Reduce e1 e2 e3) = (FV e1 @ FV e2 @ FV e3)" |
   "FV (Split e1 e2) = (FV e1 @ FV e2)" |
   "FV (Join e) = FV e" |
-  "FV (Iterate e1 e2 e3) = (FV e1 @ FV e2 @ FV e3)" |
-  "FV Null = []"
+  "FV (Iterate e1 e2 e3) = (FV e1 @ FV e2 @ FV e3)"
   
 primrec bsubst :: "nat \<Rightarrow> exp \<Rightarrow> exp \<Rightarrow> exp" ("{_\<rightarrow>_}_" [54,54,54] 53) where
   "{j\<rightarrow>e} (Const c) = Const c" |
@@ -77,8 +122,7 @@ primrec bsubst :: "nat \<Rightarrow> exp \<Rightarrow> exp \<Rightarrow> exp" ("
   "{j\<rightarrow>e} (Reduce e1 e2 e3) = Reduce ({j\<rightarrow>e} e1) ({j\<rightarrow>e} e2) ({j\<rightarrow>e} e3)" |
   "{j\<rightarrow>e} (Split e1 e2) = Split ({j\<rightarrow>e} e1) ({j\<rightarrow>e} e2)" |
   "{j\<rightarrow>e} (Join e') = Join ({j\<rightarrow>e} e')" |
-  "{j\<rightarrow>e} (Iterate e1 e2 e3) = Iterate ({j\<rightarrow>e} e1) ({j\<rightarrow>e} e2) ({j\<rightarrow>e} e3)" |
-  "{j\<rightarrow>e} Null = Null"
+  "{j\<rightarrow>e} (Iterate e1 e2 e3) = Iterate ({j\<rightarrow>e} e1) ({j\<rightarrow>e} e2) ({j\<rightarrow>e} e3)"
 
 primrec subst :: "var \<Rightarrow> exp \<Rightarrow> exp \<Rightarrow> exp" ("[_\<mapsto>_]_" [72,72,72] 71) where
   "[x\<mapsto>v] (Const c) = Const c" |
@@ -94,8 +138,7 @@ primrec subst :: "var \<Rightarrow> exp \<Rightarrow> exp \<Rightarrow> exp" ("[
   "[x\<mapsto>v] (Reduce e1 e2 e3) = Reduce ([x\<mapsto>v] e1) ([x\<mapsto>v] e2) ([x\<mapsto>v] e3)" |
   "[x\<mapsto>v] (Split e1 e2) = Split ([x\<mapsto>v] e1) ([x\<mapsto>v] e2)" |
   "[x\<mapsto>v] (Join e1) = Join ([x\<mapsto>v] e1)" |
-  "[x\<mapsto>v] (Iterate e1 e2 e3) = Iterate ([x\<mapsto>v] e1) ([x\<mapsto>v] e2) ([x\<mapsto>v] e3)" |
-  "[x\<mapsto>v] Null = Null"
+  "[x\<mapsto>v] (Iterate e1 e2 e3) = Iterate ([x\<mapsto>v] e1) ([x\<mapsto>v] e2) ([x\<mapsto>v] e3)"
 
 lemma subst_id: fixes e::exp 
   assumes xfv: "x \<notin> set (FV e)" shows "[x\<mapsto>v]e = e"
@@ -148,17 +191,18 @@ fun interp_limit :: "exp \<Rightarrow> nat \<Rightarrow> result" where
       (case (interp_limit e1 n, interp_limit e2 n) of
         (Res (LambdaE e), Res v) \<Rightarrow> interp_limit (bsubst 0 v e) n
       | (TimeOut, _) \<Rightarrow> TimeOut | (_, TimeOut) \<Rightarrow> TimeOut | (_,_) \<Rightarrow> Error)" |
-  "interp_limit (Map e1 e2) (Suc n) = 
+(*   "interp_limit (Map e1 e2) (Suc n) = 
       (case (interp_limit e1 n, interp_limit e2 n) of 
         (Res (LambdaE e), Res (Array v)) \<Rightarrow> 
           (case (array_map (\<lambda> i. interp_limit (AppE e i) n) v) of 
               Some v' \<Rightarrow> Res (Array v')
             | None \<Rightarrow> Error) 
-      | (TimeOut, _) \<Rightarrow> TimeOut | (_, TimeOut) \<Rightarrow> TimeOut | (_,_) \<Rightarrow> Error)" |
+      | (TimeOut, _) \<Rightarrow> TimeOut | (_, TimeOut) \<Rightarrow> TimeOut | (_,_) \<Rightarrow> Error)" | *)
   "interp_limit _ (Suc n) = Error" |
   "interp_limit _ 0 = TimeOut"
 
 abbreviation p0 :: exp where "p0 \<equiv> Binary Add (Const (IntC 1)) (Const (IntC 2))"
-abbreviation p1 :: exp where "p1 \<equiv> Unary Inc (Const (IntC 1))"
+abbreviation p1 :: exp where "p1 \<equiv> Unary Inc (Const (IntC 2))"
 value "interp_limit p0 2"
-value "interp_limit p1 1000"
+value "interp_limit p1 2"
+theorem "interp_limit p0 2 = Res (Const (IntC 3))" 
