@@ -2,16 +2,17 @@ theory Skel
 imports Main
 begin
 
+type_synonym 'a array = "'a list"
+
 datatype scalar_unary = Inc | Dec
 
 datatype scalar_binary = Add | Mul | Sub
-(* no division here makes my life easier *)
 
 datatype scalar_const = IntC int
 
 fun eval_scalar_unary :: "scalar_unary \<Rightarrow> scalar_const \<Rightarrow> scalar_const" where
   "eval_scalar_unary Inc (IntC n) = IntC (n + 1)" |
-  "eval_scalar_unary Dec (IntC n) = IntC (n - 1)"
+  "eval_scalar_unary Dec (IntC n) = IntC (n - 1)" 
 
 fun eval_scalar_binary :: "scalar_binary \<Rightarrow> scalar_const \<Rightarrow> scalar_const \<Rightarrow> scalar_const" where
   "eval_scalar_binary Add (IntC i) (IntC j) = IntC (i + j)" |
@@ -22,11 +23,17 @@ type_synonym var = nat
 
 datatype exp = Const scalar_const
   | Unary scalar_unary exp
-  | Binary scalar_binary exp
-  | FVar var | BVar var 
-  | LambdaE exp | AppE exp exp 
-  | Map exp exp | Zip exp exp | Reduce exp exp exp
-  | Split exp exp | Join exp
+  | Binary scalar_binary exp exp
+  | FVar var 
+  | BVar var 
+  | Array "exp array"
+  | LambdaE exp 
+  | AppE exp exp 
+  | Map exp exp 
+  | Zip exp exp 
+  | Reduce exp exp exp
+  | Split exp exp 
+  | Join exp
   | Iterate exp exp exp
 
 abbreviation list_max :: "nat list \<Rightarrow> nat" where
@@ -40,9 +47,11 @@ abbreviation mklet :: "exp \<Rightarrow> exp \<Rightarrow> exp" where
 
 primrec FV :: "exp \<Rightarrow> var list" where
   "FV (Const c) = []" |
-  "FV (Prim p e) = FV e" |
+  "FV (Unary c e) = FV e" |
+  "FV (Binary c e1 e2) = FV e1 @ FV e2" |
   "FV (FVar v) = [v]" |
   "FV (BVar v) = []" |
+  "FV (Array le) = concat (map (\<lambda> e. FV e) le)" | (* must we check the whole array? *)
   "FV (LambdaE e) = FV e" |
   "FV (AppE e1 e2) = (FV e1 @ FV e2)" |
   "FV (Map e1 e2) = (FV e1 @ FV e2)" |
