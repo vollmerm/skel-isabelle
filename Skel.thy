@@ -19,6 +19,13 @@ and make_tuple :: "(const \<times> const) \<Rightarrow> const" where
   "apply_zip xs ys = Res (ArrayC (map make_tuple (zip xs ys)))" |
   "make_tuple (c1, c2) = TupleC c1 c2"
 
+fun rec_split :: "nat \<Rightarrow> nat \<Rightarrow> nat \<Rightarrow> 'a array \<Rightarrow> ('a array) array" where
+  "rec_split tn sp 0 xs = [take tn (rotate sp xs)]" |
+  "rec_split tn sp n xs = (take tn (rotate (sp - n) xs)) # (rec_split tn sp (n - 2) xs)"
+
+fun apply_split :: "nat \<Rightarrow> const array \<Rightarrow> result" where
+  "apply_split n xs = (let n' = ((length xs)-2) in Res (ArrayC (map ArrayC (rec_split n n' n' xs))))"
+
 fun lookup :: "'a \<Rightarrow> ('a \<times> 'b) list \<Rightarrow> 'b option" where
   "lookup k [] = None" |
   "lookup k ((k',v)#ls) = (if k = k' then Some v else lookup k ls)"
@@ -44,6 +51,10 @@ fun interp :: "exp \<Rightarrow> env \<Rightarrow> result" where
   "interp (Zip e1 e2) \<rho> =
     (case (interp e1 \<rho>, interp e2 \<rho>) of 
       (Res (ArrayC a1), Res (ArrayC a2)) \<Rightarrow> apply_zip a1 a2
+    | (Error,_) \<Rightarrow> Error | (_,Error) \<Rightarrow> Error)" |
+  "interp (Split e1 e2) \<rho> = 
+    (case (interp e1 \<rho>, interp e2 \<rho>) of
+      (Res (ScalarC (IntC n)), Res (ArrayC a)) \<Rightarrow> apply_split (nat n) a
     | (Error,_) \<Rightarrow> Error | (_,Error) \<Rightarrow> Error)" |
   "interp _ \<rho> = Error"
 
