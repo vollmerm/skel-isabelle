@@ -19,12 +19,15 @@ and make_tuple :: "(const \<times> const) \<Rightarrow> const" where
   "apply_zip xs ys = Res (ArrayC (map make_tuple (zip xs ys)))" |
   "make_tuple (c1, c2) = TupleC c1 c2"
 
-fun rec_split :: "nat \<Rightarrow> nat \<Rightarrow> nat \<Rightarrow> 'a array \<Rightarrow> ('a array) array" where
-  "rec_split tn sp 0 xs = [take tn (rotate sp xs)]" |
-  "rec_split tn sp n xs = (take tn (rotate (sp - n) xs)) # (rec_split tn sp (n - 2) xs)"
+fun array_split :: "nat \<Rightarrow> 'a array \<Rightarrow> ('a array) array" where
+  "array_split 0 a = []" |
+  "array_split n a = 
+    (if n \<ge> (length a)
+    then [a]
+    else (take n a) # (array_split n (drop n a)))"
 
 fun apply_split :: "nat \<Rightarrow> const array \<Rightarrow> result" where
-  "apply_split n xs = (let n' = ((length xs)-2) in Res (ArrayC (map ArrayC (rec_split n n' n' xs))))"
+  "apply_split n a = Res (ArrayC (map ArrayC (array_split n a)))"
 
 fun lookup :: "'a \<Rightarrow> ('a \<times> 'b) list \<Rightarrow> 'b option" where
   "lookup k [] = None" |

@@ -19,9 +19,12 @@ theorem "eval (Zip p2 p2) =
          Res (ArrayC [TupleC (ScalarC (IntC 3)) (ScalarC (IntC 3)), 
                       TupleC (ScalarC (IntC 3)) (ScalarC (IntC 3))])"
 by fastforce
+
+theorem "array_split 2 [a, b, c, d] = [[a,b],[c,d]]"
+by normalization
+
 theorem "eval (Split (Const (ScalarC (IntC 2))) 
               (Array [Const (ScalarC (IntC 1)), Const (ScalarC (IntC 2)), 
                       Const (ScalarC (IntC 3)), Const (ScalarC (IntC 4))])) =
-         Res (ArrayC [ArrayC [ScalarC (IntC 1), ScalarC (IntC 2)], 
-                      ArrayC [ScalarC (IntC 3), ScalarC (IntC 4)]])"
-by fastforce
+         Res (ArrayC [ArrayC [ScalarC (IntC 1), ScalarC (IntC 2)], ArrayC [ScalarC (IntC 3), ScalarC (IntC 4)]])"
+by normalization
