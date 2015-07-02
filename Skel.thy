@@ -20,14 +20,38 @@ and make_tuple :: "(const \<times> const) \<Rightarrow> const" where
   "make_tuple (c1, c2) = TupleC c1 c2"
 
 fun array_split :: "nat \<Rightarrow> 'a array \<Rightarrow> ('a array) array" where
+  "array_split _ [] = []" |  
   "array_split 0 a = []" |
   "array_split n a = 
     (if n \<ge> (length a)
     then [a]
     else (take n a) # (array_split n (drop n a)))"
 
+lemma array_split_empty [simp]: "\<forall>n. array_split n [] = []"
+by simp
+
 fun apply_split :: "nat \<Rightarrow> const array \<Rightarrow> result" where
   "apply_split n a = Res (ArrayC (map ArrayC (array_split n a)))"
+
+lemma apply_split_empty [simp]: "\<forall>n. apply_split n [] = Res (ArrayC [])"
+by simp
+
+fun array_join :: "const array \<Rightarrow> (const array) option" where
+  "array_join [] = Some []" |
+  "array_join ((ArrayC a) # xs) = 
+    (case (array_join xs) of 
+      Some as \<Rightarrow> Some (a @ as)
+    | None \<Rightarrow> None)" |
+  "array_join _ = None"
+
+fun apply_join :: "const array \<Rightarrow> result" where
+  "apply_join a = 
+    (case (array_join a) of 
+      Some a' \<Rightarrow> Res (ArrayC a')
+    | None \<Rightarrow> Error)"
+
+lemma apply_join_empty [simp]: "apply_join [] = Res (ArrayC [])"
+by force
 
 fun lookup :: "'a \<Rightarrow> ('a \<times> 'b) list \<Rightarrow> 'b option" where
   "lookup k [] = None" |
@@ -59,9 +83,19 @@ fun interp :: "exp \<Rightarrow> env \<Rightarrow> result" where
     (case (interp e1 \<rho>, interp e2 \<rho>) of
       (Res (ScalarC (IntC n)), Res (ArrayC a)) \<Rightarrow> apply_split (nat n) a
     | (Error,_) \<Rightarrow> Error | (_,Error) \<Rightarrow> Error)" |
+  "interp (Join e) \<rho> = 
+    (case (interp e \<rho>) of 
+      Res (ArrayC a) \<Rightarrow> apply_join a
+    | Error \<Rightarrow> Error)" |
   "interp _ \<rho> = Error"
 
 definition eval :: "exp \<Rightarrow> result" where "eval e = interp e []"
 declare eval_def[simp]
+
+lemma eval_join_empty [simp]: "eval (Join (Const (ArrayC []))) = Res (ArrayC [])"
+by simp
+
+lemma eval_array_empty [simp]: "eval (Array []) = Res (ArrayC [])"
+by simp
 
 end
