@@ -19,39 +19,35 @@ and make_tuple :: "(const \<times> const) \<Rightarrow> const" where
   "apply_zip xs ys = Res (ArrayC (map make_tuple (zip xs ys)))" |
   "make_tuple (c1, c2) = TupleC c1 c2"
 
-fun array_split :: "nat \<Rightarrow> 'a array \<Rightarrow> ('a array) array" where
-  "array_split _ [] = []" |  
-  "array_split 0 a = []" |
-  "array_split n a = 
+fun array_split :: "nat \<Rightarrow> const array \<Rightarrow> const array" where
+  "array_split _ [] = []" |
+  "array_split 0 _ = []" |
+  "array_split n a =
     (if n \<ge> (length a)
-    then [a]
-    else (take n a) # (array_split n (drop n a)))"
+     then [ArrayC a]
+     else (ArrayC (take n a)) # (array_split n (drop n a)))"
 
-lemma array_split_empty [simp]: "\<forall>n. array_split n [] = []"
-by simp
+lemma array_split_one [simp]: "\<lbrakk> n > 0; n \<ge> length (a # as) \<rbrakk> 
+                               \<Longrightarrow> array_split n (a # as) = [ArrayC (a # as)]"
+apply auto
+using Suc_le_D by fastforce
 
 fun apply_split :: "nat \<Rightarrow> const array \<Rightarrow> result" where
-  "apply_split n a = Res (ArrayC (map ArrayC (array_split n a)))"
+  "apply_split n a = Res (ArrayC (array_split n a))"
 
 lemma apply_split_empty [simp]: "\<forall>n. apply_split n [] = Res (ArrayC [])"
 by simp
 
-fun array_join :: "const array \<Rightarrow> (const array) option" where
-  "array_join [] = Some []" |
-  "array_join ((ArrayC a) # xs) = 
-    (case (array_join xs) of 
-      Some as \<Rightarrow> Some (a @ as)
-    | None \<Rightarrow> None)" |
-  "array_join _ = None"
+fun array_join :: "const array \<Rightarrow> const array" where
+  "array_join [] = []" |
+  "array_join ((ArrayC a) # xs) = a @ (array_join xs)" |
+  "array_join (x # xs) = x # (array_join xs)"
 
 fun apply_join :: "const array \<Rightarrow> result" where
-  "apply_join a = 
-    (case (array_join a) of 
-      Some a' \<Rightarrow> Res (ArrayC a')
-    | None \<Rightarrow> Error)"
+  "apply_join a = Res (ArrayC (array_join a))"
 
 lemma apply_join_empty [simp]: "apply_join [] = Res (ArrayC [])"
-by force
+by simp
 
 fun lookup :: "'a \<Rightarrow> ('a \<times> 'b) list \<Rightarrow> 'b option" where
   "lookup k [] = None" |
