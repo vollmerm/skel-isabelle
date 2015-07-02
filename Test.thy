@@ -39,21 +39,21 @@ theorem "eval p3 = eval (Join (Split (Const (ScalarC (IntC 2))) p3))"
 by normalization
 
 value "eval (Split (Const (ScalarC (IntC 1))) p3)"
-
+(* 
 theorem splitjoin: 
 assumes 1: "n > 0"
 shows "eval (Join (Split (Const (ScalarC (IntC n))) (Const (ArrayC a)))) = eval (Const (ArrayC a))"
 using 1
-proof (auto, induction a)
+proof (auto, cases a)
 case (Nil)
-  show "array_join (array_split (nat n) []) = []" by simp
+  from Nil show "array_join (array_split (nat n) a) = a" by simp
 next
 case (Cons a1 a2)
-  from this show "array_join (array_split (nat n) (a1 # a2)) = a1 # a2"
+  from this show "array_join (array_split (nat n) a) = a"
   proof (cases "nat n \<ge> length (a1 # a2)")
   case (True)
     from this have 2: "array_split (nat n) (a1 # a2) = [ArrayC (a1 # a2)]" by simp
-    from this 2 show "array_join (array_split (nat n) (a1 # a2)) = a1 # a2" by simp
+    from Cons True 2 show "array_join (array_split (nat n) a) = a" by simp
   next
   case (False)
     from this have 3: "(array_split (nat n) (a1 # a2) = 
@@ -62,11 +62,12 @@ case (Cons a1 a2)
     from 3 have 4: "array_join (array_split (nat n) (a1 # a2)) = 
       array_join ((ArrayC (take (nat n) (a1 # a2))) # (array_split (nat n) (drop (nat n) (a1 # a2))))"
       by simp
-    from Cons False 1 4 have 5: "array_join (array_split (nat n) (drop (nat n) (a1 # a2))) = drop (nat n) (a1 # a2)"
-      apply auto
-      sorry
-    from 4 5 show "array_join (array_split (nat n) (a1 # a2)) = a1 # a2" by simp
+    from Cons False have 5: "array_join ((ArrayC (take (nat n) (a1 # a2))) # (array_split (nat n) (drop (nat n) (a1 # a2)))) =
+      (take (nat n) (a1 # a2)) @ array_join (array_split (nat n) (drop (nat n) (a1 # a2)))" by simp
+    from Cons False 4 5 have 6: "array_join (array_split (nat n) (drop (nat n) (a1 # a2))) = (drop (nat n) (a1 # a2))"
+    sorry
+    from Cons 4 5 6 show "array_join (array_split (nat n) a) = a" by simp
   qed
-qed
+qed *)
 
 end
