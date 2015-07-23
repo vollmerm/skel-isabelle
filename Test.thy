@@ -39,11 +39,35 @@ theorem "eval p3 = eval (Join (Split (Const (ScalarC (IntC 2))) p3))"
 by normalization
 
 value "eval (Split (Const (ScalarC (IntC 1))) p3)"
+
 theorem splitjoin:
 assumes 1: "n > 0"
-assumes 2: "n > (length a)"
+assumes 2: "n < (length a)"
 assumes 3: "(length a) mod n = 0"
 shows "eval (Join (Split (Const (ScalarC (IntC (int n)))) (Const (ArrayC a)))) = eval (Const (ArrayC a))"
-using 1 2 3 by auto
-
+using 1 2 3 
+proof (auto, induction a arbitrary: n)
+case (Nil)
+  show "array_join (array_split n []) = []" by simp
+next
+case (Cons a1 a2)
+  from this show "array_join (array_split n (a1 # a2)) = a1 # a2"
+  proof (cases "n \<ge> length (a1 # a2)")
+  case (True)
+    from this have 2: "array_split n (a1 # a2) = [ArrayC (a1 # a2)]" by simp
+    from this 2 show "array_join (array_split n (a1 # a2)) = a1 # a2" by simp
+  next
+  case (False)
+    from this have 3: "(array_split n (a1 # a2) = 
+      (ArrayC (take n (a1 # a2))) # (array_split n (drop n (a1 # a2))))"
+      by (metis Cons.prems(1) array_split.simps(3) gr0_implies_Suc)
+    from 3 have 4: "array_join (array_split n (a1 # a2)) = 
+      array_join ((ArrayC (take n (a1 # a2))) # (array_split n (drop n (a1 # a2))))"
+      by simp
+    from Cons False 1 4 have 5: "array_join (array_split n (drop n (a1 # a2))) = drop n (a1 # a2)"
+      apply auto
+      by (metis Cons.prems(5) Cons.prems(6) append_take_drop_id array_split_join same_append_eq)
+    from 4 5 show "array_join (array_split n (a1 # a2)) = a1 # a2" by simp
+  qed
+qed
 end
