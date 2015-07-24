@@ -109,6 +109,6 @@ where
   | Zip3: "\<lbrakk> (e1) \<leadsto> Res (Array (a1 # a1s)); (e2) \<leadsto> Res (Array (a2 # a2s));
             (Zip (Array a1s) (Array a2s)) \<leadsto> Res (Array as) \<rbrakk>
           \<Longrightarrow> (Zip e1 e2) \<leadsto> Res (Array ((Tup a1 a2) # as))"
-(* TODO: Zip Fold Split Join *)
+(* TODO: Fold Split Join *)
 
 end
