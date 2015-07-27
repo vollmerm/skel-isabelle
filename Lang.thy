@@ -77,38 +77,40 @@ from @{text exp} to @{text result}, which is either @{text exp} or an error.
 datatype result = Res exp | Error
 
 inductive
-  eval :: "exp \<Rightarrow> result \<Rightarrow> bool" (infix "\<leadsto>" 70)
+  eval :: "exp \<Rightarrow> result \<Rightarrow> bool" (infix "\<mapsto>" 70)
 where
-    Int: "(CInt c) \<leadsto> Res (CInt c)"
-  | Add: "\<lbrakk> (e1) \<leadsto> Res (CInt c1); (e2) \<leadsto> Res (CInt c2) \<rbrakk>
-          \<Longrightarrow> (Add e1 e2) \<leadsto> Res (CInt (c1 + c2))"
-  | Sub: "\<lbrakk> (e1) \<leadsto> Res (CInt c1); (e2) \<leadsto> Res (CInt c2) \<rbrakk>
-          \<Longrightarrow> (Add e1 e2) \<leadsto> Res (CInt (c1 - c2))"
-  | Mul: "\<lbrakk> (e1) \<leadsto> Res (CInt c1); (e2) \<leadsto> Res (CInt c2) \<rbrakk>
-          \<Longrightarrow> (Add e1 e2) \<leadsto> Res (CInt (c1 * c2))"
-  | PrjL: "\<lbrakk> (e) \<leadsto> Res (Tup c1 c2) \<rbrakk>
-          \<Longrightarrow> (PrjL e) \<leadsto> Res c1"
-  | PrjR: "\<lbrakk> (e) \<leadsto> Res (Tup c1 c2) \<rbrakk>
-          \<Longrightarrow> (PrjL e) \<leadsto> Res c2"
-  | Lam: "(Lam v e) \<leadsto> Res (Lam v e)"
-  | App: "\<lbrakk> (e1) \<leadsto> Res (Lam v e); (e2) \<leadsto> Res e2'; (subst e v e2') \<leadsto> e' \<rbrakk>
-          \<Longrightarrow> (App e1 e2) \<leadsto> e'"
-  | Array1: "(Array []) \<leadsto> Res (Array [])"
-  | Array2: "\<lbrakk> (Array es) \<leadsto> Res (Array as); (e) \<leadsto> Res e' \<rbrakk>
-          \<Longrightarrow> (Array (e # es)) \<leadsto> Res (Array (e' # as))"
-  | Var: "(Var _) \<leadsto> Error"
-  | Map1: "\<lbrakk> (e1) \<leadsto> Res (Lam v e); (e2) \<leadsto> Res (Array []) \<rbrakk>
-          \<Longrightarrow> (Map e1 e2) \<leadsto> Res (Array [])"
-  | Map2: "\<lbrakk> (e1) \<leadsto> Res (Lam v e); (e2) \<leadsto> Res (Array (a # as));
-            (Map (Lam v e) (Array as)) \<leadsto> Res (Array as'); (Apply (Lam v e) a) \<leadsto> Res a' \<rbrakk>
-          \<Longrightarrow> (Map e1 e2) \<leadsto> Res (Array (a' # as'))"
-  | Zip1: "\<lbrakk> (e2) \<leadsto> Res (Array []) \<rbrakk>
-          \<Longrightarrow> (Zip e1 e2) \<leadsto> Res (Array [])"
-  | Zip2: "\<lbrakk> (e1) \<leadsto> Res (Array []) \<rbrakk>
-          \<Longrightarrow> (Zip e1 e2) \<leadsto> Res (Array [])"
-  | Zip3: "\<lbrakk> (e1) \<leadsto> Res (Array (a1 # a1s)); (e2) \<leadsto> Res (Array (a2 # a2s));
-            (Zip (Array a1s) (Array a2s)) \<leadsto> Res (Array as) \<rbrakk>
-          \<Longrightarrow> (Zip e1 e2) \<leadsto> Res (Array ((Tup a1 a2) # as))"
+    Int: "(CInt c) \<mapsto> Res (CInt c)"
+  | Add: "\<lbrakk> (e1) \<mapsto> Res (CInt c1); (e2) \<mapsto> Res (CInt c2) \<rbrakk>
+          \<Longrightarrow> (Add e1 e2) \<mapsto> Res (CInt (c1 + c2))"
+  | Sub: "\<lbrakk> (e1) \<mapsto> Res (CInt c1); (e2) \<mapsto> Res (CInt c2) \<rbrakk>
+          \<Longrightarrow> (Add e1 e2) \<mapsto> Res (CInt (c1 - c2))"
+  | Mul: "\<lbrakk> (e1) \<mapsto> Res (CInt c1); (e2) \<mapsto> Res (CInt c2) \<rbrakk>
+          \<Longrightarrow> (Add e1 e2) \<mapsto> Res (CInt (c1 * c2))"
+  | PrjL: "\<lbrakk> (e) \<mapsto> Res (Tup c1 c2) \<rbrakk>
+          \<Longrightarrow> (PrjL e) \<mapsto> Res c1"
+  | PrjR: "\<lbrakk> (e) \<mapsto> Res (Tup c1 c2) \<rbrakk>
+          \<Longrightarrow> (PrjL e) \<mapsto> Res c2"
+  | Lam: "(Lam v e) \<mapsto> Res (Lam v e)"
+  | App: "\<lbrakk> (e1) \<mapsto> Res (Lam v e); (e2) \<mapsto> Res e2'; (subst e v e2') \<mapsto> e' \<rbrakk>
+          \<Longrightarrow> (App e1 e2) \<mapsto> e'"
+  | Array1: "(Array []) \<mapsto> Res (Array [])"
+  | Array2: "\<lbrakk> (Array es) \<mapsto> Res (Array as); (e) \<mapsto> Res e' \<rbrakk>
+          \<Longrightarrow> (Array (e # es)) \<mapsto> Res (Array (e' # as))"
+  | Var: "(Var _) \<mapsto> Error"
+  | Map1: "\<lbrakk> (e1) \<mapsto> Res (Lam v e); (e2) \<mapsto> Res (Array []) \<rbrakk>
+          \<Longrightarrow> (Map e1 e2) \<mapsto> Res (Array [])"
+  | Map2: "\<lbrakk> (e1) \<mapsto> Res (Lam v e); (e2) \<mapsto> Res (Array (a # as));
+            (Map (Lam v e) (Array as)) \<mapsto> Res (Array as'); (Apply (Lam v e) a) \<mapsto> Res a' \<rbrakk>
+          \<Longrightarrow> (Map e1 e2) \<mapsto> Res (Array (a' # as'))"
+  | Zip1: "\<lbrakk> (e2) \<mapsto> Res (Array []) \<rbrakk>
+          \<Longrightarrow> (Zip e1 e2) \<mapsto> Res (Array [])"
+  | Zip2: "\<lbrakk> (e1) \<mapsto> Res (Array []) \<rbrakk>
+          \<Longrightarrow> (Zip e1 e2) \<mapsto> Res (Array [])"
+  | Zip3: "\<lbrakk> (e1) \<mapsto> Res (Array (a1 # a1s)); (e2) \<mapsto> Res (Array (a2 # a2s));
+            (Zip (Array a1s) (Array a2s)) \<mapsto> Res (Array as) \<rbrakk>
+          \<Longrightarrow> (Zip e1 e2) \<mapsto> Res (Array ((Tup a1 a2) # as))"
 (* TODO: Fold Split Join *)
+
+
 
 end
