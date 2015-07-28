@@ -24,108 +24,112 @@ basically an extension of the lambda calculus with collective array
 operations.
  *}
 datatype exp = 
-    CInt int            (* introduce a constant int value *)
-  | Add exp exp         (* add two scalar values *)
-  | Sub exp exp         (* subtract two scalar values *)
-  | Mul exp exp         (* multiply two scalar values *)
-  | PrjL exp            (* project the left part of a tuple *)
-  | PrjR exp            (* project the right part of a tuple *)
-  | Lam var exp         (* lambda abstraction *)
-  | App exp exp         (* apply a lambda function to an expression *)
-  | Tup exp exp         (* a tuple *)
-  | Array "exp array"   (* an array of expressions *)
-  | Var var             (* look up a value in the environment *)
-  | Map exp exp         (* apply a lambda function to every element in an array *)
-  | Zip exp exp         (* zip two arrays to form an array of tuples *)
-  | Fold exp exp exp    (* fold an array with a function and initial value *)
-  | Split exp exp       (* split an array into n chunks *)
-  | Join exp            (* join the chunks of an array *)
+    C int
+  | Add exp exp         (infix "+" 70)
+  | Sub exp exp         (infix "-" 70)
+  | Mul exp exp         (infix "*" 70)
+  | PrjL exp
+  | PrjR exp
+  | Lam var exp
+  | App exp exp         (infix "$" 70)
+  | Tup exp exp         (infix "\<times>" 70)
+  | A "exp array"
+  | Var var
+  | Map exp exp         (infix "m\<Rightarrow>" 60)
+  | Zip exp exp         (infix "z\<Rightarrow>" 60)
+  | Fold exp exp exp    (infix "[_]f\<Rightarrow>" 60)
+  | Split exp exp       (infix "s\<Rightarrow>" 60)
+  | Join exp
 
 (* I'm not sure how to represent iterate. *)
 
 datatype ty = 
     TyInt
   | TyTuple ty ty
-  | TyArray ty (* not tracking size yet *)
+  | TyA ty (* not tracking size yet *)
   | TyLam ty ty
 
 subsection "Semantics"
 
-fun subst :: "exp \<Rightarrow> var \<Rightarrow> exp \<Rightarrow> exp" where
-    "subst (CInt c) v e' = CInt c"
-  | "subst (Add e1 e2) v e' = Add (subst e1 v e') (subst e2 v e')"
-  | "subst (Sub e1 e2) v e' = Sub (subst e1 v e') (subst e2 v e')"
-  | "subst (Mul e1 e2) v e' = Mul (subst e1 v e') (subst e2 v e')"
-  | "subst (PrjL e) v e' = PrjL (subst e v e')"
-  | "subst (PrjR e) v e' = PrjR (subst e v e')"
-  | "subst (Lam v' e) v e' = 
-      (if v' = v then (Lam v' e) else (Lam v' (subst e v e')))"
-  | "subst (App e1 e2) v e' = App (subst e1 v e') (subst e2 v e')"
-  | "subst (Tup e1 e2) v e' = Tup (subst e1 v e') (subst e2 v e')"
-  | "subst (Array es) v e' = Array (map (\<lambda>i. subst i v e') es)"
-  | "subst (Var v') v e' = 
+fun subst :: "exp \<Rightarrow> var \<Rightarrow> exp \<Rightarrow> exp" (infix "[_]\<leadsto>" 70) where
+    "(C c) [v]\<leadsto> e' = C c"
+  | "(e1 + e2) [v]\<leadsto> e' = (e1 [v]\<leadsto> e') + (e2 [v]\<leadsto> e')"
+  | "(e1 - e2) [v]\<leadsto> e' = (e1 [v]\<leadsto> e') - (e2 [v]\<leadsto> e')"
+  | "(e1 * e2) [v]\<leadsto> e' = (e1 [v]\<leadsto> e') * (e2 [v]\<leadsto> e')"
+  | "(PrjL e) [v]\<leadsto> e' = PrjL (e [v]\<leadsto> e')"
+  | "(PrjR e) [v]\<leadsto> e' = PrjR (e [v]\<leadsto> e')"
+  | "(Lam v' e) [v]\<leadsto> e' = 
+      (if v' = v then (Lam v' e) else (Lam v' (e [v]\<leadsto> e')))"
+  | "(e1 $ e2) [v]\<leadsto> e' = (e1 [v]\<leadsto> e') $ (e2 [v]\<leadsto> e')"
+  | "(e1 \<times> e2) [v]\<leadsto> e' = (e1 [v]\<leadsto> e') \<times> (e2 [v]\<leadsto> e')"
+  | "(A es) [v]\<leadsto> e' = A (map (\<lambda>i. i [v]\<leadsto> e') es)"
+  | "(Var v') [v]\<leadsto> e' = 
       (if v' = v then e' else (Var v'))"
-  | "subst (Map e1 e2) v e' = Map (subst e1 v e') (subst e2 v e')"
-  | "subst (Zip e1 e2) v e' = Zip (subst e1 v e') (subst e2 v e')"
-  | "subst (Fold e1 e2 e3) v e' = Fold (subst e1 v e') (subst e2 v e') (subst e3 v e')"
-  | "subst (Split e1 e2) v e' = Split (subst e1 v e') (subst e2 v e')"
-  | "subst (Join e) v e' = Join (subst e v e')"
+  | "(e1 m\<Rightarrow> e2) [v]\<leadsto> e' = (e1 [v]\<leadsto> e') m\<Rightarrow> (e2 [v]\<leadsto> e')"
+  | "(e1 z\<Rightarrow> e2) [v]\<leadsto> e' = (e1 [v]\<leadsto> e') z\<Rightarrow> (e2 [v]\<leadsto> e')"
+  | "(e1 [e2]f\<Rightarrow> e3) [v]\<leadsto> e' = (e1 [v]\<leadsto> e') [(e2 [v]\<leadsto> e')]f\<Rightarrow> (e3 [v]\<leadsto> e')"
+  | "(e1 s\<Rightarrow> e2) [v]\<leadsto> e' = (e1 [v]\<leadsto> e') s\<Rightarrow> (e2 [v]\<leadsto> e')"
+  | "(Join e) [v]\<leadsto> e' = Join (e [v]\<leadsto> e')"
 
 text {* 
 The semantics of the language are given via an inductive relation
 from @{text exp} to @{text result}, which is either @{text exp} or an error.
 *}
 
-datatype result = Res exp | Error
+datatype result = 
+    R exp 
+  | Error
 
 inductive
   evalr :: "exp \<Rightarrow> result \<Rightarrow> bool" (infix "\<mapsto>" 70)
 where
-    Int[intro!]: "(CInt c) \<mapsto> Res (CInt c)"
-  | Add[intro!]: "\<lbrakk> e1 \<mapsto> Res (CInt c1); e2 \<mapsto> Res (CInt c2) \<rbrakk>
-          \<Longrightarrow> (Add e1 e2) \<mapsto> Res (CInt (c1 + c2))"
-  | Sub[intro!]: "\<lbrakk> e1 \<mapsto> Res (CInt c1); e2 \<mapsto> Res (CInt c2) \<rbrakk>
-          \<Longrightarrow> (Sub e1 e2) \<mapsto> Res (CInt (c1 - c2))"
-  | Mul[intro!]: "\<lbrakk> (e1) \<mapsto> Res (CInt c1); (e2) \<mapsto> Res (CInt c2) \<rbrakk>
-          \<Longrightarrow> (Mul e1 e2) \<mapsto> Res (CInt (c1 * c2))"
-  | PrjL[intro!]: "\<lbrakk> (e) \<mapsto> Res (Tup c1 c2) \<rbrakk>
-          \<Longrightarrow> (PrjL e) \<mapsto> Res c1"
-  | PrjR[intro!]: "\<lbrakk> (e) \<mapsto> Res (Tup c1 c2) \<rbrakk>
-          \<Longrightarrow> (PrjR e) \<mapsto> Res c2"
-  | Lam[intro!]: "(Lam v e) \<mapsto> Res (Lam v e)"
-  | App[intro!]: "\<lbrakk> (e1) \<mapsto> Res (Lam v e); (e2) \<mapsto> Res e2'; (subst e v e2') \<mapsto> e' \<rbrakk>
-          \<Longrightarrow> (App e1 e2) \<mapsto> e'"
-  | Array1[intro!]: "(Array []) \<mapsto> Res (Array [])"
-  | Array2[intro!]: "\<lbrakk> (Array es) \<mapsto> Res (Array as); (e) \<mapsto> Res e' \<rbrakk>
-          \<Longrightarrow> (Array (e # es)) \<mapsto> Res (Array (e' # as))"
+    Int[intro!]: "(C c) \<mapsto> R (C c)"
+  | Add[intro!]: "\<lbrakk> e1 \<mapsto> R (C c1); e2 \<mapsto> R (C c2) \<rbrakk>
+          \<Longrightarrow> (e1 + e2) \<mapsto> R (C (c1 + c2))"
+  | Sub[intro!]: "\<lbrakk> e1 \<mapsto> R (C c1); e2 \<mapsto> R (C c2) \<rbrakk>
+          \<Longrightarrow> (e1 - e2) \<mapsto> R (C (c1 - c2))"
+  | Mul[intro!]: "\<lbrakk> e1 \<mapsto> R (C c1); e2 \<mapsto> R (C c2) \<rbrakk>
+          \<Longrightarrow> (e1 * e2) \<mapsto> R (C (c1 * c2))"
+  | PrjL[intro!]: "\<lbrakk> e \<mapsto> R (Tup c1 c2) \<rbrakk>
+          \<Longrightarrow> (PrjL e) \<mapsto> R c1"
+  | PrjR[intro!]: "\<lbrakk> e \<mapsto> R (Tup c1 c2) \<rbrakk>
+          \<Longrightarrow> (PrjR e) \<mapsto> R c2"
+  | Lam[intro!]: "(Lam v e) \<mapsto> R (Lam v e)"
+  | App[intro!]: "\<lbrakk> e1 \<mapsto> R (Lam v e); e2 \<mapsto> R e2'; (e [v]\<leadsto> e2') \<mapsto> e' \<rbrakk>
+          \<Longrightarrow> (e1 $ e2) \<mapsto> e'"
+  | Tup[intro!]: "\<lbrakk> e1 \<mapsto> R e1'; e2 \<mapsto> R e2' \<rbrakk> \<Longrightarrow> (e1 \<times> e2) \<mapsto> R (e1' \<times> e2')"
+  | Array1[intro!]: "(A []) \<mapsto> R (A [])"
+  | Array2[intro!]: "\<lbrakk> (A es) \<mapsto> R (A as); e \<mapsto> R e' \<rbrakk>
+          \<Longrightarrow> (A (e # es)) \<mapsto> R (A (e' # as))"
   | Var[intro!]: "(Var _) \<mapsto> Error"
-  | Map1[intro!]: "\<lbrakk> (e1) \<mapsto> Res (Lam v e); (e2) \<mapsto> Res (Array []) \<rbrakk>
-          \<Longrightarrow> (Map e1 e2) \<mapsto> Res (Array [])"
-  | Map2[intro!]: "\<lbrakk> (e1) \<mapsto> Res (Lam v e); (e2) \<mapsto> Res (Array (a # as));
-            (Map (Lam v e) (Array as)) \<mapsto> Res (Array as'); (Apply (Lam v e) a) \<mapsto> Res a' \<rbrakk>
-          \<Longrightarrow> (Map e1 e2) \<mapsto> Res (Array (a' # as'))"
-  | Zip1[intro!]: "\<lbrakk> (e2) \<mapsto> Res (Array []) \<rbrakk>
-          \<Longrightarrow> (Zip e1 e2) \<mapsto> Res (Array [])"
-  | Zip2[intro!]: "\<lbrakk> (e1) \<mapsto> Res (Array []) \<rbrakk>
-          \<Longrightarrow> (Zip e1 e2) \<mapsto> Res (Array [])"
-  | Zip3[intro!]: "\<lbrakk> (e1) \<mapsto> Res (Array (a1 # a1s)); (e2) \<mapsto> Res (Array (a2 # a2s));
-            (Zip (Array a1s) (Array a2s)) \<mapsto> Res (Array as) \<rbrakk>
-          \<Longrightarrow> (Zip e1 e2) \<mapsto> Res (Array ((Tup a1 a2) # as))"
+  | Map1[intro!]: "\<lbrakk> e2 \<mapsto> R (A []) \<rbrakk>
+          \<Longrightarrow> (e1 m\<Rightarrow> e2) \<mapsto> R (A [])"
+  | Map2[intro!]: "\<lbrakk> e1 \<mapsto> R (Lam v e); e2 \<mapsto> R (A (a # as));
+            ((Lam v e) m\<Rightarrow> (A as)) \<mapsto> R (A as'); ((Lam v e) $ a) \<mapsto> R a' \<rbrakk>
+          \<Longrightarrow> (e1 m\<Rightarrow> e2) \<mapsto> R (A (a' # as'))"
+  | Zip1[intro!]: "\<lbrakk> e2 \<mapsto> R (A []) \<rbrakk>
+          \<Longrightarrow> (e1 z\<Rightarrow> e2) \<mapsto> R (A [])"
+  | Zip2[intro!]: "\<lbrakk> e1 \<mapsto> R (A []) \<rbrakk>
+          \<Longrightarrow> (e1 z\<Rightarrow> e2) \<mapsto> R (A [])"
+  | Zip3[intro!]: "\<lbrakk> e1 \<mapsto> R (A (a1 # a1s)); e2 \<mapsto> R (A (a2 # a2s));
+            ((A a1s) z\<Rightarrow> (A a2s)) \<mapsto> R (A as) \<rbrakk>
+          \<Longrightarrow> (e1 z\<Rightarrow> e2) \<mapsto> R (A ((a1 \<times> a2) # as))"
 (* TODO: Fold Split Join *)
 
-lemma add_int[simp]:"(Add (CInt x) (CInt y)) \<mapsto> (Res (CInt (x+y)))"
+lemma add_int[simp]:"(Add (C x) (C y)) \<mapsto> (R (C (x+y)))"
 by (auto)
-lemma sub_int[simp]:"(Sub (CInt x) (CInt y)) \<mapsto> (Res (CInt (x-y)))" 
+lemma sub_int[simp]:"(Sub (C x) (C y)) \<mapsto> (R (C (x-y)))" 
 by (auto)
-lemma mul_int[simp]: "(Mul (CInt x) (CInt y)) \<mapsto> (Res (CInt (x*y)))"
+lemma mul_int[simp]: "(Mul (C x) (C y)) \<mapsto> (R (C (x*y)))"
 by (auto)
 
 (* tests *)
-lemma "(Mul (CInt 1) (CInt 2)) \<mapsto> Res (CInt 2)"
+lemma "(Mul (C 1) (C 2)) \<mapsto> R (C 2)"
 by (metis mul_int mult.left_neutral)
-lemma "(Add (CInt 1) (CInt 2)) \<mapsto> Res (CInt 3)"
+lemma "(Add (C 1) (C 2)) \<mapsto> R (C 3)"
 by (metis add_int one_plus_numeral semiring_norm(3))
-
+lemma "(Map (Lam x (Add (Var x) (C 1))) (A [(C 1),(C 2),(C 3)])) \<mapsto> R (A [(C 2),(C 3),(C 4)])"
+apply auto apply (smt add_int)+ done
 
 
 text{*
