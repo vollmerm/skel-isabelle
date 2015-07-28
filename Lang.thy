@@ -1,8 +1,10 @@
 section "Simple Language Definition"
 
+(*<*)
 theory Lang
-imports Main
+imports Main LaTeXsugar
 begin
+(*>*)
 
 subsection "Language Values"
 
@@ -111,6 +113,39 @@ where
           \<Longrightarrow> (Zip e1 e2) \<mapsto> Res (Array ((Tup a1 a2) # as))"
 (* TODO: Fold Split Join *)
 
+text{*
+\begin{figure}
+@{thm[mode=Rule] App [no_vars]} {\sc App} \\[1ex]
+\vspace{10 mm}
+@{thm[mode=Axiom] Lam [no_vars]} {\sc Lam} \\[1ex]
+\vspace{10 mm}
+@{thm[mode=Rule] Add [no_vars]} {\sc Add} \\[1ex]
+\vspace{10 mm}
+@{thm[mode=Rule] Sub [no_vars]} {\sc Sub} \\[1ex]
+\vspace{10 mm}
+@{thm[mode=Rule] Mul [no_vars]} {\sc Mul} \\[1ex]
+\vspace{10 mm}
+@{thm[mode=Axiom] Int [no_vars]} {\sc Int} \\[1ex]
+\vspace{10 mm}
+@{thm[mode=Rule] PrjL [no_vars]} {\sc Prj$_L$} \qquad
+@{thm[mode=Rule] PrjR [no_vars]} {\sc Prj$_R$} \\[1ex]
+\vspace{10 mm}
+\end{figure}
 
+\begin{figure}
+@{thm[mode=Axiom] Array1 [no_vars]} {\sc Array$_1$} \\[1ex]
+\vspace{10 mm}
+@{thm[mode=Rule] Array2 [no_vars]} {\sc Array$_2$} \\[1ex]
+\vspace{10 mm}
+@{thm[mode=Rule] Map1 [no_vars]} {\sc Map$_1$} \\[1ex]
+\vspace{10 mm}
+@{thm[mode=Rule] Map2 [no_vars]} {\sc Map$_2$} \\[1ex]
+\vspace{10 mm}
+@{thm[mode=Rule] Zip1 [no_vars]} {\sc Zip$_1$} \qquad
+@{thm[mode=Rule] Zip2 [no_vars]} {\sc Zip$_2$} \\[1ex]
+\vspace{10 mm}
+@{thm[mode=Rule] Zip3 [no_vars]} {\sc Zip$_3$} \\[1ex]
+\end{figure}
+*}
 
 end
